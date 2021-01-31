@@ -1,6 +1,6 @@
 # Nexus
 
-# Description
+## Description
 
 Nexus - short for **Nex**tion **U**pload **S**cript - is a python script that allows the upload of TFT files to a Nextion screen over serial. Unlike most other scripts out there this one uses the Nextion Upload Protocol v1.2. This is the newer version used by the Nextion Editor itself that allows skipping parts of the TFT file if those have not been modified. 
 
