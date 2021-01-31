@@ -6,4 +6,4 @@ Nexus - short for **Nex**tion **U**pload **S**cript - is a python script that al
 
 Nextion will probably never publish any details about this newer version because it requires some knowledge about the TFT file format (obviously you need to know what part you should skip). However, it's been [reverse-engineered and documented](https://unofficialnextion.com/t/nextion-upload-protocol-v1-2-the-fast-one/1044).
 
-**Nexus is still under heavy development and not expected to work. **
+**Nexus is still under heavy development and not expected to work.**
