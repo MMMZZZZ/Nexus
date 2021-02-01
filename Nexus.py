@@ -12,7 +12,6 @@ import serial
 from serial.tools.list_ports import comports as availablePorts
 from pathlib import Path
 from math import ceil
-from time import sleep
 
 
 class Nexus:
@@ -85,7 +84,8 @@ class Nexus:
 
         self.ser  = serial.Serial()
         if connect:
-            self.connect()
+            if not self.connect():
+                raise Exception("Cannot connect to device.")
 
     def connect(self):
         defaultSpeeds = [2400, 4800, 9600, 19200, 31250, 38400, 57600, 74880, 115200, 230400, 250000, 256000, 460800, 500000, 512000, 921600]
@@ -95,9 +95,9 @@ class Nexus:
             defaultSpeeds.insert(0, self.connectSpeed)
 
         for port in self.ports:
-            print("Connecting to port " + port)
+            print("Scanning port " + port)
             for speed in defaultSpeeds:
-                print("  at {}baud/s.".format(speed))
+                print("  at {}baud/s... ".format(speed), end="")
                 self.ser.close()
                 self.ser.port = port
                 self.ser.baudrate = speed
@@ -118,6 +118,7 @@ class Nexus:
                     else:
                         break
                 if not data.startswith(b"comok"):
+                    print("Failed.")
                     continue
                 self.ser.write(self.NXEOL)
                 self.ser.read(42)
@@ -133,8 +134,11 @@ class Nexus:
                 self.flashSize = int(data[6])
                 self.port         = port
                 self.connectSpeed = speed
+                if not self.model:
+                    raise Exception("Invalid model! Data: {}".format(data))
                 if not self.uploadSpeed:
                     self.uploadSpeed = self.connectSpeed
+                print("Success.")
                 return True
 
         return False
@@ -166,13 +170,12 @@ class Nexus:
         return self.modelData[modelCRC]["modelName"], fileSize, userCodeOffset
 
     def upload(self, tftFilePath):
+        if not self.connected:
+            raise Exception("Successful connection required for upload.")
+
         tftModel, fileSize, userCodeOffset = self.getTFTProperties(tftFilePath)
         if not self.model.startswith(tftModel):
             raise Exception("Cannot upload {} TFT file to {} device.".format(tftModel, self.model))
-
-        if not self.connected:
-            if not self.connect():
-                raise Exception("Cannot connect to device.")
 
         self.sendCmd("bs=42") # For some reason the first command after self.connect() always fails. Can be anything.
         self.sendCmd("dims=100")
@@ -216,12 +219,49 @@ class Nexus:
                     self.ack()
                 progress = 100 * f.tell() // fileSize
                 if progress != lastProgress:
-                    print(progress, "%", sep="")
+                    print(progress, "% ", sep="", end="\r")
                     lastProgress = progress
 
 
 if __name__ == "__main__":
-    nxu = Nexus(connectSpeed=115200, uploadSpeed=512000)
-    nxu.upload("D:/Dokumente/DRSSTC/Syntherrupter/Syntherrupter_Firmwares/Syntherrupter_Nextion_NX8048T050_011.tft")
-    #nxu.upload("D:/Dokumente/GitHub/nextion-tjc-interop/TFT File Stuff/TFT Format/Empty Files/NX8048T050_011.tft")
+    desc = """Nexus - Nextion Upload Script
+              Upload TFT files to your Nextion screen using the advantages of the newer and faster
+              upload protocol v1.2. Details at https://bit.do/unuf-nexus  
+              Developped by Max Zuidberg, licensed under MPL-2.0"""
+    parser = argparse.ArgumentParser(description=desc)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-l", "--list", action="store_true",
+                        help="List all available serial ports.")
+    group.add_argument("-i", "--input", metavar="TFT_FILE", type=str,
+                        help="Path to the TFT file")
+    parser.add_argument("-p", "--port", metavar="PORT", type=str, default="",
+                        help="Optional serial port to use. By default Nexus scans all ports and uses "
+                             "the first one where it finds a Nextion decive. Use -l to list all available "
+                             "ports. ")
+    parser.add_argument("-c", "--connect", metavar="BAUDRATE", type=int, required=False, default=0,
+                        help="Preferred baudrate for the initial connection to the screen. If a connection at this "
+                             "baudrate fails or if this argument is not given the script will try a list "
+                             "of default baudrates")
+    parser.add_argument("-u", "--upload", metavar="BAUDRATE", type=int, required=False, default=0,
+                        help="Optional baudrate for the actual upload. If not specified, the baudrate at which the "
+                             "connection has been established will be used for the upload, too (can be slow!).")
+
+    args = parser.parse_args()
+    ports = [p.name for p in availablePorts()]
+    portsStr = ", ".join(ports)
+    if args.list:
+        print("List of available serial ports:")
+        print(portsStr)
+        exit()
+
+    ports.append("")
+    if args.port not in ports:
+        parser.error("Port {} not found among the available ports: {}.".format(args.port, portsStr))
+
+    tftPath = Path(args.input)
+    if not tftPath.exists():
+        parser.error("Invalid source file!")
+
+    nxu = Nexus(port=args.port, connectSpeed=args.connect, uploadSpeed=args.upload)
+    nxu.upload(tftPath)
 
