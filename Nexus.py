@@ -18,50 +18,6 @@ class Nexus:
     NXEOL = b"\xff\xff\xff"
     NXACK = b"\x05"
     NXALL = b"\x08\x00\x00\x00\x00"
-    modelData = {
-        0x9aa696a7: {"modelName": "TJC3224T022_011", "xorKey": 0x189a66fb, },
-        0xea4c3169: {"modelName": "TJC3224T024_011", "xorKey": 0x54cd4ea3, },
-        0x72930b67: {"modelName": "TJC4024T032_011", "xorKey": 0x022df60d, },
-        0xade186d6: {"modelName": "TJC4832T035_011", "xorKey": 0xd21759a3, },
-        0xd5f3287f: {"modelName": "TJC4827T043_011", "xorKey": 0x270e0627, },
-        0x98777c2d: {"modelName": "TJC8048T050_011", "xorKey": 0x02dac5b5, },
-        0x17c5fb02: {"modelName": "TJC8048T070_011", "xorKey": 0xf9c5080c, },
-        0x334e7201: {"modelName": "TJC3224K022_011", "xorKey": 0x66cff11e, },
-        0x43a4d5cf: {"modelName": "TJC3224K024_011", "xorKey": 0x2a98d946, },
-        0xa2719a53: {"modelName": "TJC3224K028_011", "xorKey": 0xd1b53a74, },
-        0xdb7befc1: {"modelName": "TJC4024K032_011", "xorKey": 0x7c7861e8, },
-        0x04096270: {"modelName": "TJC4832K035_011", "xorKey": 0xac42ce46, },
-        0x7c1bccd9: {"modelName": "TJC4827K043_011", "xorKey": 0x595b91c2, },
-        0x319f988b: {"modelName": "TJC8048K050_011", "xorKey": 0x7c8f5250, },
-        0xbe2d1fa4: {"modelName": "TJC8048K070_011", "xorKey": 0x87909fe9, },
-        0xf52fdc1d: {"modelName": "TJC4827X343_011", "xorKey": 0x767c3bae, },
-        0xb8ab884f: {"modelName": "TJC8048X350_011", "xorKey": 0x53a8f83c, },
-        0x37190f60: {"modelName": "TJC8048X370_011", "xorKey": 0xa8b73585, },
-        0xa7ff9055: {"modelName": "TJC1060X3A1_011", "xorKey": 0x2c3a9902, },
-        0x51841ccd: {"modelName": "TJC4827X543_011", "xorKey": 0x66999185, },
-        0x1c00489f: {"modelName": "TJC8048X550_011", "xorKey": 0x434d5217, },
-        0x93b2cfb0: {"modelName": "TJC8048X570_011", "xorKey": 0xb8529fae, },
-        0x8da106d5: {"modelName": "TJC1060X570_011", "xorKey": 0xb3fbd54d, },
-        0x03545085: {"modelName": "TJC1060X5A1_011", "xorKey": 0x3cdf3329, },
-        0xf59677a7: {"modelName":  "NX3224T024_011", "xorKey": 0x6d713e32, },
-        0x1443383b: {"modelName":  "NX3224T028_011", "xorKey": 0x965cdd00, },
-        0x6d494da9: {"modelName":  "NX4024T032_011", "xorKey": 0x3b91869c, },
-        0xb23bc018: {"modelName":  "NX4832T035_011", "xorKey": 0xebab2932, },
-        0xca296eb1: {"modelName":  "NX4827T043_011", "xorKey": 0x1eb276b6, },
-        0x87ad3ae3: {"modelName":  "NX8048T050_011", "xorKey": 0x3b66b524, },
-        0x081fbdcc: {"modelName":  "NX8048T070_011", "xorKey": 0xc079789d, },
-        0x5c7e9301: {"modelName":  "NX3224K024_011", "xorKey": 0x1324a9d7, },
-        0xbdabdc9d: {"modelName":  "NX3224K028_011", "xorKey": 0xe8094ae5, },
-        0xc4a1a90f: {"modelName":  "NX4024K032_011", "xorKey": 0x45c41179, },
-        0x1bd324be: {"modelName":  "NX4832K035_011", "xorKey": 0x95febed7, },
-        0x63c18a17: {"modelName":  "NX4827K043_011", "xorKey": 0x60e7e153, },
-        0x2e45de45: {"modelName":  "NX8048K050_011", "xorKey": 0x453322c1, },
-        0xa1f7596a: {"modelName":  "NX8048K070_011", "xorKey": 0xbe2cef78, },
-        0x55953d88: {"modelName":  "NX8048P050_011", "xorKey": 0xe80f01ca, },
-        0xda27baa7: {"modelName":  "NX8048P070_011", "xorKey": 0x130ccc73, },
-        0xc43473c2: {"modelName":  "NX1060P070_011", "xorKey": 0x18a58690, },
-        0x4fc44fa0: {"modelName":  "NX1060P101_011", "xorKey": 0xdcb511f5, },
-    }
 
     def __init__(self, port="", uploadSpeed=0, connectSpeed=0, connect=True):
         self.uploadSpeed  = uploadSpeed
@@ -161,21 +117,18 @@ class Nexus:
         if not a.endswith(self.NXACK):
             raise Exception("Expected acknowledge ({}), got {}.".format(self.NXACK, a))
 
-    def getTFTProperties(self, tftFilePath):
+    def getFileSize(self, tftFilePath):
         with open(tftFilePath, "rb") as f:
-            headers = f.read(0x190)
-        modelCRC = struct.unpack_from("<I", headers, 0x2e)[0]
-        fileSize = struct.unpack_from("<I", headers, 0x3c)[0]
-        userCodeOffset = struct.unpack_from("<I", headers, 0xdc)[0] ^ self.modelData[modelCRC]["xorKey"]
-        return self.modelData[modelCRC]["modelName"], fileSize, userCodeOffset
+            f.seek(0x3c)
+            rawSize = f.read(struct.calcsize("<I"))
+        fileSize = struct.unpack("<I", rawSize)[0]
+        return fileSize
 
     def upload(self, tftFilePath):
         if not self.connected:
             raise Exception("Successful connection required for upload.")
 
-        tftModel, fileSize, userCodeOffset = self.getTFTProperties(tftFilePath)
-        if not self.model.startswith(tftModel):
-            raise Exception("Cannot upload {} TFT file to {} device.".format(tftModel, self.model))
+        fileSize = self.getFileSize(tftFilePath)
 
         self.sendCmd("bs=42") # For some reason the first command after self.connect() always fails. Can be anything.
         self.sendCmd("dims=100")
@@ -210,8 +163,9 @@ class Nexus:
                     if len(proceed) != len(self.NXALL) or not proceed.startswith(b"\x08"):
                         raise Exception("First block acknowledge (0x08) not received. Got {}.".format(proceed))
                     elif proceed != self.NXALL:
-                        f.seek(userCodeOffset)
-                        remainingBlocks = ceil((fileSize - userCodeOffset) / blockSize)
+                        nextPos = struct.unpack_from("<I", proceed, 1)[0]
+                        f.seek(nextPos)
+                        remainingBlocks = ceil((fileSize - nextPos) / blockSize)
                         print("Skipped ressources.")
                     self.ser.timeout = 0.5 # return to normal timeout.
 
@@ -264,4 +218,3 @@ if __name__ == "__main__":
 
     nxu = Nexus(port=args.port, connectSpeed=args.connect, uploadSpeed=args.upload)
     nxu.upload(tftPath)
-
