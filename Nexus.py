@@ -18,7 +18,7 @@ from time import sleep
 class Nexus:
     NXEOL = b"\xff\xff\xff"
     NXACK = b"\x05"
-    NXSKP = b"\x08\x00\x00\x11\x00"
+    NXALL = b"\x08\x00\x00\x00\x00"
     modelData = {
         0x9aa696a7: {"modelName": "TJC3224T022_011", "xorKey": 0x189a66fb, },
         0xea4c3169: {"modelName": "TJC3224T024_011", "xorKey": 0x54cd4ea3, },
@@ -81,7 +81,7 @@ class Nexus:
                 raise Exception("Specified port not available ({} not in {})".format(port, self.ports))
             else:
                 self.ports.remove(port)
-                self.ports.insert(port, 0)
+                self.ports.insert(0, port)
 
         self.ser  = serial.Serial()
         if connect:
@@ -92,21 +92,16 @@ class Nexus:
         if self.connectSpeed:
             if self.connectSpeed in defaultSpeeds:
                 defaultSpeeds.remove(self.connectSpeed)
-            defaultSpeeds.insert(self.connectSpeed, 0)
+            defaultSpeeds.insert(0, self.connectSpeed)
 
         for port in self.ports:
-            print(port)
+            print("Connecting to port " + port)
             for speed in defaultSpeeds:
-                print(speed)
+                print("  at {}baud/s.".format(speed))
                 self.ser.close()
                 self.ser.port = port
                 self.ser.baudrate = speed
-                try:
-                    self.ser.timeout  = 1000/speed + 0.030
-                    print(self.ser.timeout)
-                except:
-                    print(port, speed, self.ports, defaultSpeeds)
-                    continue
+                self.ser.timeout  = 1000/speed + 0.030
                 try:
                     self.ser.open()
                 except:
@@ -124,6 +119,8 @@ class Nexus:
                         break
                 if not data.startswith(b"comok"):
                     continue
+                self.ser.write(self.NXEOL)
+                self.ser.read(42)
                 self.connected=True
                 data = data.lstrip(b"comok ").rstrip(self.NXEOL).split(b",")
                 data[1] = data[1].split(b"-")[1] # discard reserved part of argument 1
@@ -138,7 +135,6 @@ class Nexus:
                 self.connectSpeed = speed
                 if not self.uploadSpeed:
                     self.uploadSpeed = self.connectSpeed
-                self.connected    = True
                 return True
 
         return False
@@ -157,8 +153,9 @@ class Nexus:
         self.ser.write(cmd)
 
     def ack(self):
-        if not self.ser.read_until(self.NXACK):
-            raise Exception("Acknowledge (0x05) not received.")
+        a = self.ser.read_until(self.NXACK)
+        if not a.endswith(self.NXACK):
+            raise Exception("Expected acknowledge ({}), got {}.".format(self.NXACK, a))
 
     def getTFTProperties(self, tftFilePath):
         with open(tftFilePath, "rb") as f:
@@ -177,41 +174,54 @@ class Nexus:
             if not self.connect():
                 raise Exception("Cannot connect to device.")
 
-        self.sendCmd("dims=0")
+        self.sendCmd("bs=42") # For some reason the first command after self.connect() always fails. Can be anything.
+        self.sendCmd("dims=100")
         self.sendCmd("sleep=0")
         self.ser.reset_input_buffer()
 
-        self.sendCmd("whm-wris", fileSize, self.uploadSpeed, 1)
+        print("Initiating upload... ", end="")
+        self.sendCmd("whmi-wris", fileSize, self.uploadSpeed, 1)
         self.ser.close()
         self.ser.baudrate = self.uploadSpeed
-        self.ser.timeout  = 0.500
+        self.ser.timeout  = 0.5
         try:
             self.ser.open()
         except:
             raise Exception("Cannot reopen port at upload baudrate.")
         self.ack()
+        print("Success.")
 
         blockSize = 4096
         remainingBlocks = ceil(fileSize / blockSize)
         firstBlock = True
-
+        progress, lastProgress = 0, 0
         with open(tftFilePath, "rb") as f:
             while remainingBlocks:
                 self.ser.write(f.read(blockSize))
+                remainingBlocks -= 1
 
                 if firstBlock:
                     firstBlock = False
-                    skip = self.ser.read(len(self.NXEOL))
-                    if not skip:
-                        raise Exception("First block acknowledge (0x08) not received.")
-                    elif skip == self.NXSKP:
+                    self.ser.timeout = 2 # Apparently the processing of the first block takes closer to 1s of time.
+                    proceed = self.ser.read(len(self.NXALL))
+                    if len(proceed) != len(self.NXALL) or not proceed.startswith(b"\x08"):
+                        raise Exception("First block acknowledge (0x08) not received. Got {}.".format(proceed))
+                    elif proceed != self.NXALL:
                         f.seek(userCodeOffset)
                         remainingBlocks = ceil((fileSize - userCodeOffset) / blockSize)
+                        print("Skipped ressources.")
+                    self.ser.timeout = 0.5 # return to normal timeout.
+
                 else:
                     self.ack()
+                progress = 100 * f.tell() // fileSize
+                if progress != lastProgress:
+                    print(progress, "%", sep="")
+                    lastProgress = progress
 
 
 if __name__ == "__main__":
-    nxu = Nexus()
-    nxu.upload("example.tft")
-    print("done")
+    nxu = Nexus(connectSpeed=115200, uploadSpeed=512000)
+    nxu.upload("D:/Dokumente/DRSSTC/Syntherrupter/Syntherrupter_Firmwares/Syntherrupter_Nextion_NX8048T050_011.tft")
+    #nxu.upload("D:/Dokumente/GitHub/nextion-tjc-interop/TFT File Stuff/TFT Format/Empty Files/NX8048T050_011.tft")
+
