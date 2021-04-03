@@ -22,7 +22,7 @@ python Nexus.py -h
 To upload a file at 512000baud/s type
 
 ```
-pyhton Nexus.py -i PATH_TO_YOUR_TFT_FILE -u 512000
+python Nexus.py -i PATH_TO_YOUR_TFT_FILE -u 512000
 ```
 
 The script will automatically scan all available ports for a Nextion screen. You can manually specify a port using `-p PORT`. To list all available ports use 
