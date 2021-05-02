@@ -17,7 +17,7 @@ from math import ceil
 class Nexus:
     NXEOL = b"\xff\xff\xff"
     NXACK = b"\x05"
-    NXALL = b"\x08\x00\x00\x00\x00"
+    NXSKP = b"\x08"
 
     def __init__(self, port="", uploadSpeed=0, connectSpeed=0, connect=True):
         self.uploadSpeed  = uploadSpeed
@@ -112,8 +112,9 @@ class Nexus:
             cmd = struct.pack("<H", self.address) + cmd
         self.ser.write(cmd)
 
-    def ack(self):
-        a = self.ser.read_until(self.NXACK)
+    def ack(self, a = None):
+        if not a:
+            a = self.ser.read_until(self.NXACK)
         if not a.endswith(self.NXACK):
             raise Exception("Expected acknowledge ({}), got {}.".format(self.NXACK, a))
 
@@ -139,7 +140,7 @@ class Nexus:
         self.sendCmd("whmi-wris", fileSize, self.uploadSpeed, 1)
         self.ser.close()
         self.ser.baudrate = self.uploadSpeed
-        self.ser.timeout  = 0.5
+        self.ser.timeout = 2  # Apparently the 0x08 response needs more time than the 0x05 response - about 1s.
         try:
             self.ser.open()
         except:
@@ -149,28 +150,27 @@ class Nexus:
 
         blockSize = 4096
         remainingBlocks = ceil(fileSize / blockSize)
-        firstBlock = True
         progress, lastProgress = 0, 0
         with open(tftFilePath, "rb") as f:
             while remainingBlocks:
                 self.ser.write(f.read(blockSize))
                 remainingBlocks -= 1
 
-                if firstBlock:
-                    firstBlock = False
-                    self.ser.timeout = 2 # Apparently the processing of the first block takes closer to 1s of time.
-                    proceed = self.ser.read(len(self.NXALL))
-                    if len(proceed) != len(self.NXALL) or not proceed.startswith(b"\x08"):
-                        raise Exception("First block acknowledge (0x08) not received. Got {}.".format(proceed))
-                    elif proceed != self.NXALL:
-                        nextPos = struct.unpack_from("<I", proceed, 1)[0]
-                        f.seek(nextPos)
-                        remainingBlocks = ceil((fileSize - nextPos) / blockSize)
-                        print("Skipped ressources.")
-                    self.ser.timeout = 0.5 # return to normal timeout.
-
+                proceed = self.ser.read(1)
+                if proceed == self.NXSKP:
+                    offset = self.ser.read(4)
+                    if len(offset) != 4:
+                        raise Exception("Incomplete offset for skip command (0x08).")
+                    offset = struct.unpack("<I", offset)[0]
+                    if (offset):
+                        # A value of 0 doesn't mean "seek to position 0" but "don't seek anywhere".
+                        jumpSize = offset - f.tell()
+                        f.seek(offset)
+                        remainingBlocks = ceil((fileSize - offset) / blockSize)
+                        print("Skipped {} bytes.".format(jumpSize))
                 else:
-                    self.ack()
+                    self.ack(proceed)
+
                 progress = 100 * f.tell() // fileSize
                 if progress != lastProgress:
                     print(progress, "% ", sep="", end="\r")
