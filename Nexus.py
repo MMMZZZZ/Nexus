@@ -8,6 +8,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import argparse
 import struct
+import time
 import serial
 from serial.tools.list_ports import comports as availablePorts
 from pathlib import Path
@@ -35,8 +36,7 @@ class Nexus:
             if port not in self.ports:
                 raise Exception("Specified port not available ({} not in {})".format(port, self.ports))
             else:
-                self.ports.remove(port)
-                self.ports.insert(0, port)
+                self.ports = [port]
 
         self.ser  = serial.Serial()
         if connect:
@@ -44,7 +44,10 @@ class Nexus:
                 raise Exception("Cannot connect to device.")
 
     def connect(self):
-        defaultSpeeds = [2400, 4800, 9600, 19200, 31250, 38400, 57600, 74880, 115200, 230400, 250000, 256000, 460800, 500000, 512000, 921600]
+        # Time to check baudrate is proportional to 1/baudrate. Therefore reversing the list leads on
+        # average to a faster connection (with 115200 it is "instant" instead of ~1s).
+        defaultSpeeds = reversed([2400, 4800, 9600, 19200, 31250, 38400, 57600, 74880, 115200, 230400,
+                                  250000, 256000, 460800, 500000, 512000, 921600])
         if self.connectSpeed:
             if self.connectSpeed in defaultSpeeds:
                 defaultSpeeds.remove(self.connectSpeed)
@@ -150,11 +153,13 @@ class Nexus:
 
         blockSize = 4096
         remainingBlocks = ceil(fileSize / blockSize)
-        progress, lastProgress = 0, 0
+        blocksSent, lastProgress, lastEta = 0, 0, 0
         with open(tftFilePath, "rb") as f:
+            startTime = time.time()
             while remainingBlocks:
                 self.ser.write(f.read(blockSize))
                 remainingBlocks -= 1
+                blocksSent += 1
 
                 proceed = self.ser.read(1)
                 if proceed == self.NXSKP:
@@ -172,9 +177,12 @@ class Nexus:
                     self.ack(proceed)
 
                 progress = 100 * f.tell() // fileSize
-                if progress != lastProgress:
-                    print(progress, "% ", sep="", end="\r")
+                eta = ceil((time.time() - startTime) / blocksSent * remainingBlocks)
+                if progress != lastProgress or eta != lastEta:
+                    lastEta = eta
                     lastProgress = progress
+                    eta = "{}m{:02}s".format(eta // 60, eta % 60)
+                    print("Progress: {}%  ETA: {}".format(progress, eta), end="\r")
 
 
 if __name__ == "__main__":
