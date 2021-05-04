@@ -140,7 +140,11 @@ class Nexus:
         self.ser.reset_input_buffer()
 
         print("Initiating upload... ", end="")
-        self.sendCmd("whmi-wris", fileSize, self.uploadSpeed, 1)
+        # Use v1.2 by default except if the firmware hasn't support for it yet. 
+        cmd = "whm-wris"
+        if self.fwVersion < 123: # exact version tbd
+            cmd = "whm-wri"
+        self.sendCmd(cmd, fileSize, self.uploadSpeed, 1)
         self.ser.close()
         self.ser.baudrate = self.uploadSpeed
         self.ser.timeout = 2  # Apparently the 0x08 response needs more time than the 0x05 response - about 1s.
