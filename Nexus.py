@@ -46,8 +46,9 @@ class Nexus:
     def connect(self):
         # Time to check baudrate is proportional to 1/baudrate. Therefore reversing the list leads on
         # average to a faster connection (with 115200 it is "instant" instead of ~1s).
-        defaultSpeeds = reversed([2400, 4800, 9600, 19200, 31250, 38400, 57600, 74880, 115200, 230400,
-                                  250000, 256000, 460800, 500000, 512000, 921600])
+        defaultSpeeds = [2400, 4800, 9600, 19200, 31250, 38400, 57600, 74880, 115200, 230400,
+                                  250000, 256000, 460800, 500000, 512000, 921600]
+        defaultSpeeds.reverse()
         if self.connectSpeed:
             if self.connectSpeed in defaultSpeeds:
                 defaultSpeeds.remove(self.connectSpeed)
