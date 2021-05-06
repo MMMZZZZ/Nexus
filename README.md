@@ -6,6 +6,8 @@ Nexus - short for **Nex**tion **U**pload **S**cript - is a python script that al
 
 Nextion never published any details about this newer version but it's been [reverse-engineered and documented](https://unofficialnextion.com/t/nextion-upload-protocol-v1-2-the-fast-one/1044).
 
+If you happen to have a device so old that it doesn't support this new upload protocol, the script will automatically fall back to the well-known v1.1. 
+
 ## Requirements
 
 * [Python 3](https://www.python.org/downloads/) (3.9 or higher recommended)
