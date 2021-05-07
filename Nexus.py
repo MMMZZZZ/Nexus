@@ -78,7 +78,7 @@ class Nexus:
                     else:
                         break
                 if not data.startswith(b"comok"):
-                    print("Failed.")
+                    print("Failed (Got \"{}\").".format(data))
                     continue
                 self.ser.write(self.NXEOL)
                 self.ser.read(42)
@@ -126,6 +126,8 @@ class Nexus:
         if not a:
             a = self.ser.read_until(self.NXACK)
         if not a.endswith(self.NXACK):
+            # Prevent overwriting of previous line
+            print("")
             raise Exception("Expected acknowledge ({}), got {}.".format(self.NXACK, a))
 
     def getFileSize(self, tftFilePath):
