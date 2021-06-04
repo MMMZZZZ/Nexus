@@ -30,7 +30,7 @@ class Nexus:
         self.fwVersion    = -1
         self.mcuCode      = -1
         self.serialNum    = ""
-        self.flashSize    = -1
+        self.flashSizeStr = ""
         self.ports        = [p.name for p in availablePorts()]
         if port:
             if port not in self.ports:
@@ -52,7 +52,7 @@ class Nexus:
         if self.connectSpeed:
             if self.connectSpeed in defaultSpeeds:
                 defaultSpeeds.remove(self.connectSpeed)
-            defaultSpeeds.insert(0, self.connectSpeed)
+            defaultSpeeds = [self.connectSpeed] + defaultSpeeds
 
         for port in self.ports:
             print("Scanning port " + port)
@@ -78,7 +78,7 @@ class Nexus:
                     else:
                         break
                 if not data.startswith(b"comok"):
-                    print("Failed (Got \"{}\").".format(data))
+                    print("Failed (Got {}).".format(data))
                     continue
                 self.ser.write(self.NXEOL)
                 self.ser.read(42)
@@ -91,7 +91,7 @@ class Nexus:
                 self.fwVersion = int(data[3])
                 self.mcuCode   = int(data[4])
                 self.serialNum = data[5].decode("ascii")
-                self.flashSize = int(data[6])
+                self.flashSizeStr = data[6].decode("ascii")
                 self.port         = port
                 self.connectSpeed = speed
                 if not self.model:
@@ -99,7 +99,7 @@ class Nexus:
                 if not self.uploadSpeed:
                     self.uploadSpeed = self.connectSpeed
                 print("Success.\n")
-                d = {"Model": self.model, "Flash Size": self.flashSize, "Address": self.address,
+                d = {"Model": self.model, "Flash Size": self.flashSizeStr, "Address": self.address,
                      "Firmware Version": self.fwVersion, "MCU Code": self.mcuCode, "Serial Number:": self.serialNum}
                 maxLen = max([len(k) for k in d.keys()]) + 1
                 for k,v in d.items():
