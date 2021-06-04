@@ -152,6 +152,9 @@ class Nexus:
 
         print("Initiating upload... ", end="")
 
+        # TODO: The firmware versions stupidly differ from series to series. A.k.a. 126 is fine
+        #       for the basic series but not for the enhanced or intelligent series. grrr...
+        #       more testing needed.
         # Use v1.2 by default except if the firmware hasn't support for it yet. The actual upload
         # code below works for both v1.2 and v1.1. Only difference is that v1.1 doesn't require a
         # 2s timeout but it doesn't hurt either.
@@ -161,9 +164,9 @@ class Nexus:
         # corresponds to editor version 0.55. For most Nextion users this shouldn't matter anyways
         # since Nextion skipped all these versions up to 0.58.
         cmd = "whmi-wris"
-        if self.fwVersion < 126:
-            cmd = "whmi-wri"
-            print("\nFirmware doesn't support upload protocol v1.2, using v1.1 instead.")
+        #if self.fwVersion < 126:
+        #    cmd = "whmi-wri"
+        #    print("\nFirmware doesn't support upload protocol v1.2, using v1.1 instead.")
         self.sendCmd(cmd, fileSize, self.uploadSpeed, 1)
         self.ser.close()
         self.ser.baudrate = self.uploadSpeed
