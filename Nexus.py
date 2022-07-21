@@ -31,7 +31,7 @@ class Nexus:
         self.mcuCode      = -1
         self.serialNum    = ""
         self.flashSizeStr = ""
-        self.ports        = [p.name for p in availablePorts()]
+        self.ports        = [p.device for p in availablePorts()]
         if port:
             if port not in self.ports:
                 raise Exception("Specified port not available ({} not in {})".format(port, self.ports))
@@ -236,7 +236,7 @@ if __name__ == "__main__":
                              "connection has been established will be used for the upload, too (can be slow!).")
 
     args = parser.parse_args()
-    ports = [p.name for p in availablePorts()]
+    ports = [p.device for p in availablePorts()]
     portsStr = ", ".join(ports)
     if args.list:
         print("List of available serial ports:")
